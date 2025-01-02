@@ -28,7 +28,7 @@
 #include "platform.hpp"
 #include "linAlg.hpp"
 
-void ellipticZeroMean(elliptic_t *elliptic, occa::memory &o_q)
+void ellipticZeroMean(elliptic_t *elliptic, const dlong ortho_type, occa::memory &o_q)
 {
   auto mesh = elliptic->mesh;
   const auto Nglobal = mesh->NelementsGlobal * mesh->Np;
@@ -39,7 +39,26 @@ void ellipticZeroMean(elliptic_t *elliptic, occa::memory &o_q)
                "%s\n",
                "NULL space handling for Block solver current not supported!");
   } else {
-    auto qmeanGlobal = platform->linAlg->sum(mesh->Nlocal, o_q, platform->comm.mpiComm);
-    platform->linAlg->add(mesh->Nlocal, -qmeanGlobal / Nglobal, o_q);
+
+         if (ortho_type==0) { /* This is for Unassembled vectors */
+
+            auto qmeanGlobal = platform->linAlg->sum(mesh->Nlocal, o_q, platform->comm.mpiComm);
+            platform->linAlg->add(mesh->Nlocal, -qmeanGlobal / Nglobal, o_q);
+   //       printf("mean A in zerom: %.15e\n", qmeanGlobal);
+
+         } else {            /* This is for Assembled vectors */
+
+            auto &o_weight = elliptic->o_invDegree;
+            auto qsum  = platform->linAlg->innerProd(mesh->Nlocal, o_weight, o_q, platform->comm.mpiComm);
+            const auto wgtsum = platform->linAlg->sum(mesh->Nlocal, o_weight, platform->comm.mpiComm);
+            platform->linAlg->add(mesh->Nlocal, -qsum / wgtsum, o_q);
+   //       printf("mean B in zerom: %.15e\n", qsum);
+
+   /*
+            auto qmeanGlobal = platform->linAlg->sum(mesh->Nlocal, o_q, platform->comm.mpiComm);
+            platform->linAlg->add(mesh->Nlocal, -qmeanGlobal / Nglobal, o_q);
+            printf("mean C in zerom: %.15e\n", qmeanGlobal);
+   */
+         }
   }
 }

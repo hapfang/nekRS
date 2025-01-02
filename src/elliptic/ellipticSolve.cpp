@@ -72,7 +72,8 @@ void ellipticSolve(elliptic_t *elliptic,
   nekrsCheck(o_rhs.size() < o_x.size(), MPI_COMM_SELF, EXIT_FAILURE, "%s!\n", "unreasonable size of o_rhs");
 
   auto updateResidualWeight = [&]() {
-    if (platform->options.compareArgs("LINEAR SOLVER STOPPING CRITERION TYPE", "LEGACY")) {
+//  if (platform->options.compareArgs("LINEAR SOLVER STOPPING CRITERION TYPE", "LEGACY")) {
+    if (mesh->Nlocal > 0) {
       if (!elliptic->o_residualWeight.isInitialized()) {
         elliptic->o_residualWeight = platform->device.malloc<dfloat>(mesh->Nlocal);
       }
@@ -140,7 +141,7 @@ void ellipticSolve(elliptic_t *elliptic,
         ->axpbyzMany(mesh->Nlocal, elliptic->Nfields, elliptic->fieldOffset, -1.0, o_Ap, 1.0, o_rhs, o_r);
 
     if (elliptic->nullspace) {
-      ellipticZeroMean(elliptic, o_r);
+      ellipticZeroMean(elliptic, 0, o_r);  // 0 ==> o_r is unassembled
     }
     ellipticApplyMask(elliptic, o_r, dfloatString);
     oogs::startFinish(o_r, elliptic->Nfields, elliptic->fieldOffset, ogsDfloat, ogsAdd, elliptic->oogs);
@@ -231,7 +232,7 @@ void ellipticSolve(elliptic_t *elliptic,
   platform->linAlg->axpbyMany(mesh->Nlocal, elliptic->Nfields, elliptic->fieldOffset, 1.0, o_x0, 1.0, o_x);
 
   if (elliptic->nullspace) {
-    ellipticZeroMean(elliptic, o_x);
+    ellipticZeroMean(elliptic, 1, o_x); // 1 ==> o_x is Assembled
   }
 
   elliptic->o_lambda0 = nullptr;

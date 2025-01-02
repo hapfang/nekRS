@@ -13,7 +13,8 @@ int _pgmres(elliptic_t *elliptic,
             occa::memory &o_r,
             occa::memory &o_x)
 {
-  auto tiny = 10 * std::numeric_limits<dfloat>::min();
+//auto tiny = 10 * std::numeric_limits<dfloat>::min();
+  auto tiny =  0 * std::numeric_limits<dfloat>::min();
 
   auto mesh = elliptic->mesh;
   linAlg_t &linAlg = *(platform->linAlg);
@@ -44,6 +45,8 @@ int _pgmres(elliptic_t *elliptic,
 
   auto &o_weight = elliptic->o_residualWeight;
 
+  if (elliptic->nullspace) ellipticZeroMean(elliptic, 1, o_r);
+
   o_r0.copyFrom(o_r, o_r.size());
 
   dfloat nr = rdotr;
@@ -73,6 +76,7 @@ int _pgmres(elliptic_t *elliptic,
     if (flexible) {
       elliptic
           ->updatePGMRESSolutionKernel(mesh->Nlocal, elliptic->fieldOffset, gmresUpdateSize, o_y, o_Z, o_x);
+
     } else {
       platform->linAlg->fill(elliptic->Nfields * elliptic->fieldOffset, 0.0, o_tmp);
       elliptic
@@ -80,6 +84,7 @@ int _pgmres(elliptic_t *elliptic,
 
       auto &o_Mtmp = o_w;
       ellipticPreconditioner(elliptic, o_tmp, o_Mtmp);
+
       platform->linAlg
           ->axpbyMany(mesh->Nlocal, elliptic->Nfields, elliptic->fieldOffset, 1.0, o_Mtmp, 1.0, o_x);
 

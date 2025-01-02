@@ -66,6 +66,6 @@ void ellipticPreconditioner(elliptic_t *elliptic, const occa::memory &o_r, occa:
   platform->timer.toc(elliptic->name + " preconditioner");
 
   if (elliptic->nullspace) {
-    ellipticZeroMean(elliptic, o_z);
+    ellipticZeroMean(elliptic, 1, o_z); // 1 ==> o_z is continuous
   }
 }
