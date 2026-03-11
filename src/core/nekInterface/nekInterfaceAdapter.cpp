@@ -174,13 +174,16 @@ fldData openFld(const std::string &filename, std::vector<std::string> &_availabl
   if (*ptr<int>("getpr")) {
     _availableVariables.push_back("pressure");
   }
+
+  int scalarStart = 0;
   if (*ptr<int>("gettr")) {
     _availableVariables.push_back("temperature");
+    scalarStart = 1;
   }
 
   const auto nsr = *ptr<int>("npsr");
   for (int i = 0; i < nsr; i++) {
-    _availableVariables.push_back("scalar" + scalarDigitStr(i));
+    _availableVariables.push_back("scalar" + scalarDigitStr(i + scalarStart)); // 1 base
   }
 
   {
@@ -1232,10 +1235,10 @@ int setup(int numberActiveFields)
   options->getArgs("FLUID VISCOSITY", mue);
 
   double rhoCp;
-  options->getArgs("SCALAR00 DENSITY", rhoCp);
+  options->getArgs("SCALAR00 TRANSPORTCOEFF", rhoCp);
 
   double lambda;
-  options->getArgs("SCALAR00 DIFFUSIVITY", lambda);
+  options->getArgs("SCALAR00 DIFFUSIONCOEFF", lambda);
 
   int stressForm = 1; // avoid recompilation + bypass unligned SYM/SHL check
 

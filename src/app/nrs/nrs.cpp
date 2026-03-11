@@ -639,7 +639,7 @@ void nrs_t::restartFromFiles(const std::vector<std::string> &fileList)
 
       const auto scalarStart = (o_iofldT.size()) ? 1 : 0;
       for (int i = scalarStart; i < Nscalar; i++) {
-        const auto sid = scalarDigitStr(i - scalarStart);
+        const auto sid = scalarDigitStr(i);
         if (checkOption("s" + sid) && isAvailable("scalar" + sid)) {
           auto o_Si = scalar->o_S.slice(scalar->fieldOffsetScan[i], scalar->mesh(i)->Nlocal);
           std::vector<occa::memory> o_iofldSi = {o_Si};
@@ -689,7 +689,7 @@ void nrs_t::setIC()
   if (nek::usrFile()) {
     copyToNek(startTime, 0, true);
     nek::userchk();
-    copyFromNek();
+    copyFromNek(true);
   }
 
   if (platform->comm.mpiRank() == 0) {
@@ -1317,8 +1317,9 @@ void nrs_t::copyToNek(double time, int tstep, bool updateMesh)
 
 void nrs_t::copyToNek(double time, bool updateMesh_)
 {
+  updateMesh_ |= (geom != nullptr);
   if (platform->comm.mpiRank() == 0) {
-    printf("copying solution to nek\n");
+    printf("copying solution to nek %s\n", (updateMesh_) ? "(updateMesh=T)" : "");
     fflush(stdout);
   }
 
@@ -1394,21 +1395,40 @@ void nrs_t::copyToNek(double time, bool updateMesh_)
   }
 }
 
-void nrs_t::copyFromNek()
+void nrs_t::copyFromNek(bool updateMesh_)
 {
   double time; // dummy
-  copyFromNek(time);
+  copyFromNek(time, updateMesh_);
 }
 
-void nrs_t::copyFromNek(double &time)
+void nrs_t::copyFromNek(double &time, bool updateMesh_)
 {
+  updateMesh_ |= (geom != nullptr);
   if (platform->comm.mpiRank() == 0) {
-    printf("copying solution from nek\n");
+    printf("copying solution from nek %s\n", (updateMesh_) ? "(updateMesh=T)" : "");
     fflush(stdout);
   }
 
   time = *(nekData.time);
   p0th[0] = *(nekData.p0th);
+
+  auto updateMesh = [&]() {
+    auto mesh = meshT;
+    auto [x, y, z] = mesh->xyzHost();
+    for (int i = 0; i < mesh->Nlocal; i++) {
+        x[i] = nekData.xm1[i];
+        y[i] = nekData.ym1[i];
+        z[i] = nekData.zm1[i];
+    }
+    mesh->o_x.copyFrom(x.data(), mesh->Nlocal);
+    mesh->o_y.copyFrom(y.data(), mesh->Nlocal);
+    mesh->o_z.copyFrom(z.data(), mesh->Nlocal);
+
+    meshT->update();
+    if (meshT != meshV) {
+      meshV->computeInvLMM();
+    }
+  };
 
   if (fluid) {
     auto U = platform->memoryPool.reserve<dfloat>(fluid->fieldOffsetSum);
@@ -1434,6 +1454,11 @@ void nrs_t::copyFromNek(double &time)
       wz[i] = nekData.wz[i];
     }
     geom->o_U.copyFrom(U, U.size());
+    updateMesh_ = true;
+  }
+
+  if (updateMesh_) {
+    updateMesh();
   }
 
   if (fluid) {
@@ -2104,7 +2129,7 @@ void nrs_t::registerKernels(occa::properties kernelInfoBC)
   {
     auto ellipticFieldsToRegister = fieldsToSolve();
 
-    auto list = serializeString(platform->options.getArgs("USER ELLIPTIC FIELDS"), ' ');
+    auto list = serializeString(platform->options.getArgs("USER ELLIPTIC FIELDS"), ',');
     for (auto &&entry : list) {
       if (!platform->options.compareArgs(std::string("ELLIPTIC ") + upperCase(entry) + " SOLVER", "NONE")) {
         ellipticFieldsToRegister.push_back("elliptic " + lowerCase(entry));

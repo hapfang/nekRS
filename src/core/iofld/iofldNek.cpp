@@ -185,6 +185,20 @@ size_t iofldNek::read()
     }
   };
 
+  auto hasTemperature = false;
+  auto hasScalar00 = false;
+  for (auto &entry : userFields) { // temperature is scalar00
+    const auto &name = entry.first;
+    if (name == "temperature") {
+      hasTemperature = true;
+    }
+    if (name == "scalar" + scalarDigitStr(0)) {
+      hasScalar00 = true;
+    }
+  }
+
+  int scalarStart = (hasTemperature || !hasScalar00) ? 1 : 0;
+
   for (auto &entry : userFields) {
     const auto &name = entry.first;
 
@@ -200,9 +214,8 @@ size_t iofldNek::read()
     if (name == "temperature" && fldData.o_t.size()) {
       populateVariable(name, fldData.o_t);
     }
-
     for (int is = 0; is < fldData.o_s.size(); is++) {
-      if (name == "scalar" + scalarDigitStr(is) && fldData.o_s[is].size()) {
+      if (name == "scalar" + scalarDigitStr(is + scalarStart) && fldData.o_s[is].size()) {
         populateVariable(name, fldData.o_s[is]);
       }
     }
