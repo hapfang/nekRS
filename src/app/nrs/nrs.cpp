@@ -154,13 +154,14 @@ nrs_t::nrs_t()
 
 void nrs_t::init()
 {
-  if (platform->options.compareArgs("FLUID STRESSFORMULATION", "TRUE")) {
-    nekrsCheck(!platform->options.compareArgs("FLUID VELOCITY SOLVER", "BLOCK"),
-               platform->comm.mpiComm(),
-               EXIT_FAILURE,
-               "%s\n",
-               "stressformulation requires block solver!");
-  }
+  if (!platform->options.compareArgs("FLUID VELOCITY SOLVER", "NONE") &&
+        platform->options.compareArgs("FLUID STRESSFORMULATION", "TRUE")) {
+      nekrsCheck(!platform->options.compareArgs("FLUID VELOCITY SOLVER", "BLOCK"),
+                 platform->comm.mpiComm(),
+                 EXIT_FAILURE,
+                 "%s\n",
+                 "stressformulation requires block solver!");
+    }
 
   const auto meshTRequested = [&]() {
     int N;
